@@ -15,7 +15,6 @@
 
 {{ $app->assets(['assets:angular/directives/mediapreview.js'], $app['cockpit/version']) }}
 
-
 <div class="app-wrapper" data-ng-controller="mediamanager" ng-cloak>
 
     <div class="uk-navbar">
@@ -58,7 +57,7 @@
 
         <div class="uk-panel app-panel-box docked">
             <ul class="uk-breadcrumb">
-                <li ng-click="updatepath('/')"><a href="#/" title="Change dir to root"><i class="uk-icon-home"></i></a></li>
+                <li ng-click="updatepath('root')"><a href="#/" title="Change dir to root"><i class="uk-icon-home"></i></a></li>
                 <li ng-repeat="crumb in breadcrumbs"><a href="#@@ crumb.path @@" ng-click="updatepath(crumb.path)" title="Change dir to @@ crumb.name @@">@@ crumb.name @@</a></li>
             </ul>
         </div>

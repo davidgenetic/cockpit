@@ -46,7 +46,7 @@
             $.UIkit.modalbox.close();
         });
 
-        this.loadPath('/');
+        this.loadPath(App.config.mediamanager_root);
 
 
         App.assets.require(['assets/vendor/ajaxupload.js'], function(){
@@ -108,7 +108,7 @@
                     var parts   = path.split('/'),
                         tmppath = [];
 
-                    $this.caption.append('<span data-path="/"><strong>site:</strong></span>');
+                    $this.caption.append('<span data-path="'+App.config.mediamanager_root+'"><strong>site:</strong></span>');
 
                     for(var i=0;i<parts.length;i++){
 

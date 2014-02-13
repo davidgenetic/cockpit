@@ -14,6 +14,7 @@ return [
 
     "i18n"              => "en",
     "docs_root"         => $docsroot,
+    "mediamanager_root" => "userfiles",
 
     "database"          => [ "server" => "mongolite://".(__DIR__.'/storage/data'), "options" => ["db" => "cockpitdb"] ],
 

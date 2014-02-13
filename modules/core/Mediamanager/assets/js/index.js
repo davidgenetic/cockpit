@@ -1,7 +1,7 @@
 (function($){
 
     var Editor = {
-        
+
         init: function($scope) {
 
             if (this.element) {
@@ -45,7 +45,7 @@
             // key mappings
 
             this.code.addKeyMap({
-                'Ctrl-S': function(){ Editor.save(); }, 
+                'Ctrl-S': function(){ Editor.save(); },
                 'Cmd-S': function(){ Editor.save(); },
                 'Esc': function(){ Editor.close(); }
             });
@@ -64,7 +64,7 @@
         },
 
         save: function(){
-            
+
             if(!this.file) {
                 return;
             }
@@ -78,7 +78,7 @@
         },
 
         show: function(file, content){
-            
+
             var ext  = file.name.split('.').pop().toLowerCase(),
                 mode = "text";
 
@@ -107,13 +107,13 @@
             // autoload modes
             if(mode!='text') {
                 App.assets.require(['/assets/vendor/codemirror/mode/%N/%N.js'.replace(/%N/g, mode)], function(){
-                    
+
                     switch(mode) {
                         case "php":
                             Editor.code.setOption("mode", "application/x-httpd-php");
                             break;
                         default:
-                          Editor.code.setOption("mode", mode);  
+                          Editor.code.setOption("mode", mode);
                     }
                 });
             }
@@ -142,7 +142,7 @@
 
     App.module.controller("mediamanager", function($scope, $rootScope, $http){
 
-            var currentpath = location.hash ? location.hash.replace("#", ''):"/",
+            var currentpath = location.hash ? location.hash.replace("#", ''):App.config.mediamanager_root,
                 apiurl      = App.route('/mediamanager/api'),
 
                 imgpreview  = new $.UIkit.modal.Modal("#mm-image-preview");
@@ -238,12 +238,12 @@
                         imgpreview.show();
                         break;
                     case "text":
-                        
+
                         requestapi({"cmd":"readfile", "path": file.path}, function(content){
                             Editor.show(file, content);
                         }, "text");
 
-                        
+
                         break;
                     default:
                         App.notify("Sorry, this file type is not supported.");
@@ -268,7 +268,7 @@
             };
 
             $scope.addBookmark = function(item) {
-                
+
                 var bookmark = {"name": item.name, "path": item.path},
                     cat      = item.is_dir ? "folders":"files";
 
@@ -296,6 +296,8 @@
 
             function loadPath(path) {
 
+                path = path === 'root' ? App.config.mediamanager_root : path;
+
                 requestapi({"cmd":"ls", "path": path}, function(data){
 
                     currentpath = path;
@@ -308,8 +310,10 @@
                             crumbs  = [];
 
                         for(var i=0;i<parts.length;i++){
-                            tmppath.push(parts[i]);
-                            crumbs.push({'name':parts[i],'path':tmppath.join("/")});
+                            if (parts[i] != App.config.mediamanager_root) {
+                                tmppath.push(parts[i]);
+                                crumbs.push({'name':parts[i],'path':tmppath.join("/")});
+                            }
                         }
 
                         $scope.breadcrumbs = crumbs;

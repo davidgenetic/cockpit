@@ -111,6 +111,7 @@
     App.storage = Storage.select("cockpit", "local");
     App.memory  = Storage.select("cockpit", "memory");
     App.i18n    = window.i18n;
+    App.config  = {};
 
     global.App = App;
 

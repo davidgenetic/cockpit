@@ -12,6 +12,10 @@
     @trigger('app.layout.header')
 
     {{ $app->assets(["assets:angular/cockpit.js"], $app['cockpit/version']) }}
+
+    <script>
+        App.config = {{ json_encode($app["app.config"]) }};
+    </script>
 </head>
 <body>
 
