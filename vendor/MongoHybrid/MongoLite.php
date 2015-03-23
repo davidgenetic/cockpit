@@ -22,11 +22,13 @@ class MongoLite {
             $db = $this->db;
         }
 
+        $name = str_replace('/', '_', $name);
+
         return $this->client->selectCollection($db, $name);
     }
 
-    public function findOne($collection, $filter = []) {
-        return $this->getCollection($collection)->findOne($filter);
+    public function findOne($collection, $filter = [], $projection = null) {
+        return $this->getCollection($collection)->findOne($filter, $projection);
     }
 
     public function findOneById($collection, $id){
@@ -37,17 +39,21 @@ class MongoLite {
     public function find($collection, $options = []){
 
         $filter = isset($options["filter"]) ? $options["filter"] : null;
+        $fields = isset($options["fields"]) && $options["fields"] ? $options["fields"] : null;
         $limit  = isset($options["limit"])  ? $options["limit"] : null;
         $sort   = isset($options["sort"])   ? $options["sort"] : null;
         $skip   = isset($options["skip"])   ? $options["skip"] : null;
 
-        $cursor = $this->getCollection($collection)->find($filter);
+        $cursor = $this->getCollection($collection)->find($filter, $fields);
 
         if($limit) $cursor->limit($limit);
         if($sort)  $cursor->sort($sort);
-        if($skip)  $cursor->sort($skip);
+        if($skip)  $cursor->skip($skip);
 
-        return $cursor->toArray();
+        $docs      = $cursor->toArray();
+        $resultSet = new ResultSet($this, $docs);
+
+        return $resultSet;
     }
 
     public function insert($collection, &$doc) {
@@ -64,5 +70,9 @@ class MongoLite {
 
     public function remove($collection, $filter=[]) {
         return $this->getCollection($collection)->remove($filter);
+    }
+
+    public function count($collection, $filter=[]) {
+        return $this->getCollection($collection)->count($filter);
     }
 }

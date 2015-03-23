@@ -1,35 +1,22 @@
-{{ $app->assets(['assets:vendor/masonry.js']) }}
+@start('header')
 
-<div class="mosaic">
-    @trigger('admin.dashboard')
-    <div class="masonary-column-indicator"></div>
+    <style>
+
+        .app-dashboard-widget {
+            margin-bottom: 25px;
+        }
+
+    </style>
+
+@end('header')
+
+<div class="uk-grid" data-uk-grid-margin>
+    <div class="uk-width-medium-1-2">
+        @trigger('admin.dashboard.main')
+    </div>
+    <div class="uk-width-medium-1-2">
+        <div class="uk-grid uk-grid-width-medium-1-2" data-uk-grid-match="{target:'.app-panel'}">
+            @trigger('admin.dashboard.aside')
+        </div>
+    </div>
 </div>
-
-<style>
-    .mosaic {
-      margin: -10px;
-    }
-    .mosaic .masonary-column-indicator { width: 25%;}
-    .mosaic .app-dashboard-widget { width: 25%; }
-    .mosaic .app-dashboard-widget .app-panel { min-height: 300px; }
-
-    @media(max-width:960px) {
-        .masonary-column-indicator { width: 50%; }
-        .mosaic .app-dashboard-widget { width: 50%;}
-    }
-
-    @media(max-width:767px) {
-        .masonary-column-indicator { width: 100%; }
-        .mosaic .app-dashboard-widget { width: 100%;}
-    }
-</style>
-
-<script>
-
-    (function($){
-
-         $('.mosaic').masonry({itemSelector: '.app-dashboard-widget', columnWidth:'.masonary-column-indicator', gutter: 0});
-
-    })(jQuery);
-
-</script>

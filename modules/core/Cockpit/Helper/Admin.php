@@ -12,11 +12,12 @@ class Admin extends \Lime\Helper {
     public function menu($key, $def = null, $prio = 5){
         $lst = isset($this->app["admin.menu.{$key}"]) ? $this->app["admin.menu.{$key}"] : null;
 
-        if($lst && $def) {
+        if ($lst && $def) {
             $lst->insert(array_merge([
                 "url"   => "",
                 "label" => "",
-                "title" => ""
+                "title" => "",
+                "children" => new \ArrayObject([])
             ], $def), (int)$prio);
         }
 

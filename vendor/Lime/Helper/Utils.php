@@ -5,12 +5,27 @@ namespace Lime\Helper;
 class Utils extends \Lime\Helper {
 
 	public function gravatar($email, $size=40) {
-		return "http://www.gravatar.com/avatar/".md5($email)."?d=mm&s=".$size;
+		return "//www.gravatar.com/avatar/".md5($email)."?d=mm&s=".$size;
 	}
 
     public function formatSize($size) {
       $sizes = array(" Bytes", " KB", " MB", " GB", " TB", " PB", " EB", " ZB", " YB");
       return ($size == 0) ? "n/a" : (round($size/pow(1024, ($i = floor(log($size, 1024)))), 2) . $sizes[$i]);
+    }
+
+    public function fixRelativeUrls($content, $base = '/'){
+
+        $protocols = '[a-zA-Z0-9\-]+:';
+
+        $regex     = '#\s+(src|href|poster)="(?!/|' . $protocols . '|\#|\')([^"]*)"#m';
+        $content   = preg_replace($regex, " $1=\"$base\$2\"", $content);
+
+        // Background image.
+        $regex     = '#style\s*=\s*[\'\"](.*):\s*url\s*\([\'\"]?(?!/|' . $protocols . '|\#)([^\)\'\"]+)[\'\"]?\)#m';
+        $content   = preg_replace($regex, 'style="$1: url(\'' . $base . '$2$3\')', $content);
+
+        return $content;
+
     }
 
     public function sluggify($string, $replacement = '-', $tolower = true) {
@@ -116,4 +131,53 @@ class Utils extends \Lime\Helper {
         }
         return $new_data;
     }
+
+	/**
+	* Converts many english words that equate to true or false to boolean.
+	*
+	* Supports 'y', 'n', 'yes', 'no' and a few other variations.
+	*
+	* @param  string $string  The string to convert to boolean
+	* @param  bool   $default The value to return if we can't match any
+	*                          yes/no words
+	* @return boolean
+	*/
+	public static function str_to_bool($string, $default = false) {
+
+		$yes_words = 'affirmative|all right|aye|indubitably|most assuredly|ok|of course|okay|sure thing|y|yes+|yea|yep|sure|yeah|true|t|on|1|oui|vrai';
+		$no_words  = 'no*|no way|nope|nah|na|never|absolutely not|by no means|negative|never ever|false|f|off|0|non|faux';
+
+		if (preg_match('/^('.$yes_words.')$/i', $string)) {
+			return true;
+		} else if (preg_match('/^('.$no_words.')$/i', $string)) {
+			return false;
+		}
+
+		return $default;
+	}
+
+	/**
+	* Truncate a string to a specified length without cutting a word off.
+	*
+	* @param   string  $string  The string to truncate
+	* @param   integer $length  The length to truncate the string to
+	* @param   string  $append  Text to append to the string IF it gets
+	*                           truncated, defaults to '...'
+	* @return  string
+	*/
+	public static function safe_truncate($string, $length, $append = '...') {
+
+		$ret        = substr($string, 0, $length);
+		$last_space = strrpos($ret, ' ');
+
+		if ($last_space !== false && $string != $ret) {
+			$ret = substr($ret, 0, $last_space);
+		}
+
+		if ($ret != $string ) {
+			$ret .= $append;
+		}
+
+		return $ret;
+	}
 }

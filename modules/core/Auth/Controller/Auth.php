@@ -8,20 +8,27 @@ class Auth extends \LimeExtra\Controller {
     public function check() {
 
 
-        if($data = $this->param('auth')) {
+        if ($data = $this->param('auth')) {
 
             $user = $this->module('auth')->authenticate($data);
 
-            if($user) {
+            if ($user) {
+
                 $this->module("auth")->setUser($user);
+
+                // log to history
+                $this->helper("history")->log([
+                    "msg"  => "%s logged in",
+                    "args" => [$user["name"] ? $user["name"]:$user["user"]],
+                    "mod"  => "auth"
+                ]);
             }
 
-            if($this->req_is('ajax')) {
-                return $user ? '{"success":1}' : '{"success":0}';
+            if ($this->req_is('ajax')) {
+                return $user ? json_encode(["success" => true, "user" => $user, "avatar"=> md5($user["email"])]) : '{"success":0}';
             } else {
                 $this->reroute('/');
             }
-
         }
 
         return false;
@@ -30,10 +37,6 @@ class Auth extends \LimeExtra\Controller {
 
     public function login() {
 
-        if(!$this->app->db->getCollection("cockpit/accounts")->count()) {
-            $this->reroute($this->app->getSiteUrl().'/install');
-        }
-
         return $this->render('cockpit:views/layouts/login.php');
     }
 
@@ -41,7 +44,7 @@ class Auth extends \LimeExtra\Controller {
 
         $this->module('auth')->logout();
 
-        if($this->req_is('ajax')) {
+        if ($this->req_is('ajax')) {
             return '{"logout":1}';
         } else {
             $this->reroute('/auth/login');

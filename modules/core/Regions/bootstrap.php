@@ -4,108 +4,152 @@
 
 $this->module("regions")->extend([
 
-    "render" => function($name, $params = []) use($app) {
+    'get_region' => function($name) use($app) {
 
-        $region = $app->db->findOne("common/regions", ["name"=>$name]);
+        static $regions;
 
-        if(!$region) {
+        if (null === $regions) {
+            $regions = [];
+        }
+
+        if (!isset($regions[$name])) {
+            $regions[$name] = $app->db->findOne('common/regions', ['name'=>$name]);
+        }
+
+        return $regions[$name];
+    },
+
+    'get_region_by_slug' => function($slug) use($app) {
+
+        return $app->db->findOne('common/regions', ['slug'=>$slug]);
+    },
+
+    'render' => function($name, $params = [], $locale = null) use($app) {
+
+        if (!$locale && is_string($params)) {
+            $locale = $params;
+            $params = [];
+        }
+
+        $region = $this->get_region($name);
+
+        if (!$region) {
             return null;
         }
 
-        $renderer = $app->renderer();
-        $fields   = [];
+        $renderer = $app->renderer;
+        $_fields  = isset($region['fields']) ? $region['fields'] : [];
+        $fields   = ['_fields' => $_fields];
 
-        if(isset($region["fields"]) && count($region["fields"])) {
-            foreach ($region["fields"] as &$field) {
-                $fields[$field["name"]] = $field["value"];
+        if (count($_fields)) {
+            foreach ($region['fields'] as &$field) {
+
+                $fields[$field['name']] = $field['value'];
+
+                if ($locale && isset($field["value_{$locale}"])) {
+                    $fields[$field['name']] = $field["value_{$locale}"];
+                }
             }
         }
 
         $fields = array_merge($fields, $params);
 
-        $app->trigger("region_before_render", [$name, $region["tpl"], $fields]);
+        $app->trigger('region_before_render', [$name, $region['tpl'], $fields]);
 
-        $output = $renderer->execute($region["tpl"], $fields);
+        $output = $renderer->execute($region['tpl'], $fields);
 
-        $app->trigger("region_after_render", [$name, $output]);
+        $app->trigger('region_after_render', [$name, $output]);
 
         return $output;
+    },
+
+    'region_field' => function($region, $fieldname, $key = null, $default = null) {
+
+
+        $region = $this->get_region($region);
+
+        if ($region && isset($region['fields']) && count($region['fields'])) {
+            foreach ($region['fields'] as &$field) {
+
+                if ($field['name'] == $fieldname) {
+
+                    if ($key) {
+                        return isset($field[$key]) ? $field[$key] : $default;
+                    }
+
+                    return $field;
+                }
+            }
+        }
+
+        return null;
+    },
+
+    'update_region_field' => function($region, $fieldname, $value) use($app) {
+
+        $region = $this->get_region($region);
+
+        if ($region && isset($region['fields']) && count($region['fields'])) {
+
+            foreach ($region['fields'] as &$field) {
+
+                if ($field['name'] == $fieldname) {
+
+                    $field['value']     = $value;
+                    $region["modified"] = time();
+
+                    return $app->db->save("common/regions", $region);
+                }
+            }
+        }
+
+        return false;
+    },
+
+    'group' => function($group, $sort = null) use($app) {
+
+        if (!$sort) $sort = ['name' => 1];
+
+        return $app->db->find('common/regions', ['filter' =>['group' => $group], 'sort'=> $sort]);
     }
 ]);
 
 // extend lexy parser
-$app->renderer()->extend(function($content){
+$app->renderer->extend(function($content){
 
     $content = preg_replace('/(\s*)@region\((.+?)\)/', '$1<?php echo cockpit("regions")->render($2); ?>', $content);
 
     return $content;
 });
 
-if(!function_exists("region")) {
-    function region($name, $params = []) {
-        echo cockpit("regions")->render($name, $params);
+if (!function_exists('region')) {
+    function region($name, $params = [], $locale = null) {
+        echo cockpit('regions')->render($name, $params, $locale);
     }
 }
 
-if(!function_exists("get_region")) {
-    function get_region($name, $params = []) {
-        return cockpit("regions")->render($name, $params);
+if (!function_exists('get_region')) {
+    function get_region($name, $params = [], $locale = null) {
+        return cockpit('regions')->render($name, $params, $locale);
     }
 }
 
-//rest
-$app->on("cockpit.rest.init", function($routes) {
+if (!function_exists('regions_in_group')) {
+    function regions_in_group($group, $sort = null) {
+        return cockpit('regions')->group($group, $sort);
+    }
+}
+
+if (!function_exists('region_field')) {
+    function region_field($region, $field, $key = null, $default = null) {
+        return cockpit('regions')->region_field($region, $field, $key, $default);
+    }
+}
+
+// REST
+$app->on('cockpit.rest.init', function($routes) {
     $routes["regions"] = 'Regions\\Controller\\RestApi';
 });
 
 // ADMIN
-
-if(COCKPIT_ADMIN) {
-
-
-    $app->on("admin.init", function() use($app){
-
-        if(!$app->module("auth")->hasaccess("Regions","manage")) return;
-
-        $app->bindClass("Regions\\Controller\\Regions", "regions");
-        $app->bindClass("Regions\\Controller\\Api", "api/regions");
-
-        $app("admin")->menu("top", [
-            "url"    => $app->routeUrl("/regions"),
-            "label"  => '<i class="uk-icon-th-large"></i>',
-            "title"  => $app("i18n")->get("Regions"),
-            "active" => (strpos($app["route"], '/regions') === 0)
-        ], 5);
-
-        // handle global search request
-        $app->on("cockpit.globalsearch", function($search, $list) use($app){
-
-            foreach ($app->db->find("common/regions") as $r) {
-                if(stripos($r["name"], $search)!==false){
-                    $list[] = [
-                        "title" => '<i class="uk-icon-th-large"></i> '.$r["name"],
-                        "url"   => $app->routeUrl('/regions/region/'.$r["_id"])
-                    ];
-                }
-            }
-        });
-    });
-
-    $app->on("admin.dashboard", function() use($app){
-
-        if(!$app->module("auth")->hasaccess("Regions","manage")) return;
-
-        $title   = $app("i18n")->get("Regions");
-        $badge   = $app->db->getCollection("common/regions")->count();
-        $regions = $app->db->find("common/regions", ["limit"=> 3, "sort"=>["created"=>-1] ]);
-
-        $control = $app->module("auth")->hasaccess("Regions","control");
-
-        echo $app->view("regions:views/dashboard.php with cockpit:views/layouts/dashboard.widget.php", compact('title', 'badge', 'regions', 'control'));
-    });
-
-
-    // acl
-    $app("acl")->addResource("Regions", ['manage', 'control']);
-
-}
+if (COCKPIT_ADMIN && !COCKPIT_REST) include_once(__DIR__.'/admin.php');

@@ -9,7 +9,6 @@ class Mongo {
 
     public function __construct($server, $options=[]) {
 
-
         $this->client  = new \MongoClient($server, $options);
         $this->db      = $this->client->selectDB($options["db"]);
         $this->options = $options;
@@ -37,11 +36,11 @@ class Mongo {
         return $doc;
     }
 
-    public function findOne($collection, $filter = []) {
+    public function findOne($collection, $filter = [], $projection = []) {
 
         if(isset($filter["_id"]) && is_string($filter["_id"])) $filter["_id"] = new \MongoId($filter["_id"]);
 
-        $doc =  $this->getCollection($collection)->findOne($filter);
+        $doc =  $this->getCollection($collection)->findOne($filter, $projection);
 
         if(isset($doc["_id"])) $doc["_id"] = (string) $doc["_id"];
 
@@ -50,29 +49,38 @@ class Mongo {
 
     public function find($collection, $options = []){
 
-        $filter = isset($options["filter"]) ? $options["filter"] : [];
-        $limit  = isset($options["limit"]) ? $options["limit"] : null;
-        $sort   = isset($options["sort"]) ? $options["sort"] : null;
-        $skip   = isset($options["skip"]) ? $options["skip"] : null;
-
+        $filter = isset($options["filter"]) && $options["filter"] ? $options["filter"] : [];
+        $fields = isset($options["fields"]) && $options["fields"] ? $options["fields"] : [];
+        $limit  = isset($options["limit"])  && $options["limit"]  ? $options["limit"]  : null;
+        $sort   = isset($options["sort"])   && $options["sort"]   ? $options["sort"]   : null;
+        $skip   = isset($options["skip"])   && $options["skip"]   ? $options["skip"]   : null;
 
         if($filter && isset($filter["_id"])) {
             $filter["_id"] = new \MongoId($filter["_id"]);
         }
 
-        $cursor = $this->getCollection($collection)->find($filter);
+        $cursor = $this->getCollection($collection)->find($filter, $fields);
 
         if($limit) $cursor->limit($limit);
         if($sort)  $cursor->sort($sort);
-        if($skip)  $cursor->sort($skip);
+        if($skip)  $cursor->skip($skip);
 
-        $docs = array_values(iterator_to_array($cursor));
+        if ($cursor->count()) {
 
-        foreach ($docs as &$doc) {
-            if(isset($doc["_id"])) $doc["_id"] = (string) $doc["_id"];
+            $docs = array_values(iterator_to_array($cursor));
+
+            foreach ($docs as &$doc) {
+                if(isset($doc["_id"])) $doc["_id"] = (string) $doc["_id"];
+            }
+
+        } else {
+
+            $docs = [];
         }
 
-        return $docs;
+        $resultSet = new ResultSet($this, $docs);
+
+        return $resultSet;
     }
 
     public function insert($collection, &$doc) {
@@ -120,5 +128,11 @@ class Mongo {
 
         return $this->getCollection($collection)->remove($filter);
     }
+
+    public function count($collection, $filter=[]) {
+
+        return $this->getCollection($collection)->count($filter);
+    }
+
 
 }

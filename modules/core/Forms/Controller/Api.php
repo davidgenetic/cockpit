@@ -9,20 +9,20 @@ class Api extends \Cockpit\Controller {
 
         $options = [];
 
-        if($filter = $this->param("filter", null)) $options["filter"] = $filter;
-        if($limit  = $this->param("limit", null))  $options["limit"] = $limit;
-        if($sort   = $this->param("sort", null))   $options["sort"] = $sort;
-        if($skip   = $this->param("skip", null))   $options["skip"] = $skip;
+        if ($filter = $this->param("filter", null)) $options["filter"] = $filter;
+        if ($limit  = $this->param("limit", null))  $options["limit"] = $limit;
+        if ($sort   = $this->param("sort", null))   $options["sort"] = $sort;
+        if ($skip   = $this->param("skip", null))   $options["skip"] = $skip;
 
         $docs = $this->app->db->find("common/forms", $options);
 
-        if(count($docs) && $this->param("extended", false)){
+        if (count($docs) && $this->param("extended", false)){
             foreach ($docs as &$doc) {
                 $doc["count"] = $this->app->module("forms")->collectionById($doc["_id"])->count();
             }
         }
 
-        return json_encode($docs);
+        return json_encode($docs->toArray());
     }
 
     public function findOne(){
@@ -37,12 +37,12 @@ class Api extends \Cockpit\Controller {
 
         $form = $this->param("form", null);
 
-        if($form) {
+        if ($form) {
 
             $form["modified"] = time();
             $form["_uid"]     = @$this->user["_id"];
 
-            if(!isset($form["_id"])){
+            if (!isset($form["_id"])){
                 $form["created"] = $form["modified"];
             }
 
@@ -56,7 +56,7 @@ class Api extends \Cockpit\Controller {
 
         $form = $this->param("form", null);
 
-        if($form) {
+        if ($form) {
             $frm = "form".$form["_id"];
 
             $this->app->db->dropCollection("forms/{$frm}");
@@ -72,20 +72,20 @@ class Api extends \Cockpit\Controller {
         $form = $this->param("form", null);
         $entries    = [];
 
-        if($form) {
+        if ($form) {
 
             $frm     = "form".$form["_id"];
             $options = [];
 
-            if($filter = $this->param("filter", null)) $options["filter"] = $filter;
-            if($limit  = $this->param("limit", null))  $options["limit"] = $limit;
-            if($sort   = $this->param("sort", null))   $options["sort"] = $sort;
-            if($skip   = $this->param("skip", null))   $options["skip"] = $skip;
+            if ($filter = $this->param("filter", null)) $options["filter"] = $filter;
+            if ($limit  = $this->param("limit", null))  $options["limit"] = $limit;
+            if ($sort   = $this->param("sort", null))   $options["sort"] = $sort;
+            if ($skip   = $this->param("skip", null))   $options["skip"] = $skip;
 
             $entries = $this->app->db->find("forms/{$frm}", $options);
         }
 
-        return json_encode($entries);
+        return json_encode($entries->toArray());
     }
 
     public function removeentry(){
@@ -93,7 +93,7 @@ class Api extends \Cockpit\Controller {
         $form = $this->param("form", null);
         $entryId    = $this->param("entryId", null);
 
-        if($form && $entryId) {
+        if ($form && $entryId) {
 
             $frm = "form".$form["_id"];
 
@@ -103,19 +103,33 @@ class Api extends \Cockpit\Controller {
         return ($form && $entryId) ? '{"success":true}' : '{"success":false}';
     }
 
+    public function emptytable(){
+
+        $form = $this->param("form", null);
+
+        if ($form) {
+
+            $form = "form".$form["_id"];
+
+            $this->app->db->remove("forms/{$form}", []);
+        }
+
+        return $form ? '{"success":true}' : '{"success":false}';
+    }
+
     public function saveentry(){
 
         $form = $this->param("form", null);
         $entry      = $this->param("entry", null);
 
-        if($form && $entry) {
+        if ($form && $entry) {
 
             $frm = "form".$form["_id"];
 
             $entry["modified"] = time();
             $entry["_uid"]     = @$this->user["_id"];
 
-            if(!isset($entry["_id"])){
+            if (!isset($entry["_id"])){
                 $entry["created"] = $entry["modified"];
             }
 
@@ -123,6 +137,22 @@ class Api extends \Cockpit\Controller {
         }
 
         return $entry ? json_encode($entry) : '{}';
+    }
+
+    public function export($formId) {
+
+        if (!$this->app->module("auth")->hasaccess("Forms", 'manage.forms')) {
+            return false;
+        }
+
+        $form = $this->app->db->findOneById("common/forms", $formId);
+
+        if (!$form) return false;
+
+        $col     = "form".$form["_id"];
+        $entries = $this->app->db->find("forms/{$col}");
+
+        return json_encode($entries, JSON_PRETTY_PRINT);
     }
 
 }

@@ -3,8 +3,11 @@
     var Cockpit = {
         token  : '{{ $token }}',
         apiurl : '@route('/rest/api')',
+        pathToUrl: function(path) {
+            return String(path).replace("site:", "{{ $app->pathToUrl('site:') }}");
+        },
         request: function(route, params, type){
-            
+
             type   = type || 'auto';
             params = params || {};
 
@@ -14,7 +17,7 @@
                     "_s": [],
                     "_f": [],
                     "success": function(fn){
-                        if(!status) {
+                        if (!status) {
                             this._s.push(fn);
                         } else {
                             if (status===1) fn(ret._r, ret._req);
@@ -23,7 +26,7 @@
                         return ret;
                     },
                     "fail": function(fn){
-                        if(!status) {
+                        if (!status) {
                             this._f.push(fn)
                         } else {
                             if (status===-1) fn(ret._r, ret._req);
@@ -33,7 +36,7 @@
                 };
 
             xhr.onload = function(){
-                
+
                 ret._r   = this.responseText;
                 ret._req = this;
 
@@ -41,11 +44,11 @@
 
                     status = 1;
 
-                    if(type=="auto" && String(ret._r).match(/^(\{(.*)\}|\[(.*)\])$/g)) {
+                    if (type=="auto" && String(ret._r).match(/^(\{(.*)\}|\[(.*)\])$/g)) {
                         type = "json";
                     }
 
-                    if(type=="json") {
+                    if (type=="json") {
                         try { ret._r = JSON.parse(ret._r); } catch(e){ ret._r = null; }
                     }
 
@@ -70,7 +73,7 @@
 
     // AMD support
     if (typeof define === 'function' && define.amd) {
-        define(function () { return Cockpit; });
+        define(function() { return Cockpit; });
     }
 
     g.Cockpit = Cockpit;

@@ -2,77 +2,83 @@
 
 // API
 
-$this->module("galleries")->extend([
+$this->module('galleries')->extend([
 
-    "gallery" => function($name) use($app) {
+    'gallery' => function($name) use($app) {
 
-        $gallery = $app->db->findOne("common/galleries", ["name"=>$name]);
+        static $galleries;
 
-        return $gallery ? $gallery["images"] : null;
-    }
+        if (null === $galleries) {
+            $galleries = [];
+        }
+
+        $gallery = null;
+
+        if (!isset($galleries[$name])) {
+            $galleries[$name] = $app->db->findOne('common/galleries', ['name'=>$name]);
+        }
+
+        $gallery = $galleries[$name];
+
+        return $gallery ? $gallery['images'] : null;
+    },
+
+    'galleryById' => function($id) use($app) {
+
+        static $galleries;
+
+        if (null === $galleries) {
+            $galleries = [];
+        }
+
+        if (!isset($galleries[$id])) {
+            $galleries[$id] = $app->db->findOne('common/galleries', ['_id'=>$id]);
+        }
+
+        return $galleries[$id];
+    },
+
+    'galleries' => function($options = []) use($app) {
+
+        return $app->db->find('common/galleries', $options)->toArray();
+    },
+
+    'group' => function($group, $sort = null) use($app) {
+
+        return $this->galleries(['filter' =>['group' => $group], 'sort'=> $sort]);
+    },
+
+    'get_gallery_by_slug' => function($slug) use($app) {
+        static $galleries;
+
+        if (null === $galleries) {
+            $galleries = [];
+        }
+
+        $gallery = null;
+
+        if (!isset($galleries[$slug])) {
+            $galleries[$slug] = $app->db->findOne('common/galleries', ['slug'=>$slug]);
+        }
+
+        $gallery = $galleries[$slug];
+
+        return $gallery ? $gallery['images'] : null;
+    },
 ]);
 
 
-if(!function_exists("gallery")) {
+if (!function_exists('gallery')) {
     function gallery($name) {
-        return cockpit("galleries")->gallery($name);
+        return cockpit('galleries')->gallery($name);
     }
 }
 
 
-//rest
-$app->on("cockpit.rest.init", function($routes) {
+// REST
+$app->on('cockpit.rest.init', function($routes) {
     $routes["galleries"] = 'Galleries\\Controller\\RestApi';
 });
 
-
 // ADMIN
-
-if(COCKPIT_ADMIN) {
-
-
-    $app->on("admin.init", function() use($app){
-
-        if(!$app->module("auth")->hasaccess("Galleries", "manage")) return;
-
-        $app->bindClass("Galleries\\Controller\\Galleries", "galleries");
-        $app->bindClass("Galleries\\Controller\\Api", "api/galleries");
-
-        $app("admin")->menu("top", [
-            "url"    => $app->routeUrl("/galleries"),
-            "label"  => '<i class="uk-icon-picture-o"></i>',
-            "title"  => $app("i18n")->get("Galleries"),
-            "active" => (strpos($app["route"], '/galleries') === 0)
-        ], 5);
-
-        // handle global search request
-        $app->on("cockpit.globalsearch", function($search, $list) use($app){
-
-            foreach ($app->db->find("common/galleries") as $g) {
-                if(stripos($g["name"], $search)!==false){
-                    $list[] = [
-                        "title" => '<i class="uk-icon-picture-o"></i> '.$g["name"],
-                        "url"   => $app->routeUrl('/galleries/gallery/'.$g["_id"])
-                    ];
-                }
-            }
-        });
-    });
-
-    $app->on("admin.dashboard", function() use($app){
-
-        if(!$app->module("auth")->hasaccess("Galleries","manage")) return;
-
-        $title     = $app("i18n")->get("Galleries");
-        $badge     = $app->db->getCollection("common/galleries")->count();
-        $galleries = $app->db->find("common/galleries", ["limit"=> 3, "sort"=>["created"=>-1] ]);
-
-        $control = $app->module("auth")->hasaccess("Galleries","control");
-
-        echo $app->view("galleries:views/dashboard.php with cockpit:views/layouts/dashboard.widget.php", compact('title', 'badge', 'galleries', 'control'));
-    });
-
-
-    // acl
-    $app("acl")->addResource("Galleries", ['manage', 'control']);
-}
+if (COCKPIT_ADMIN && !COCKPIT_REST) include_once(__DIR__.'/admin.php');

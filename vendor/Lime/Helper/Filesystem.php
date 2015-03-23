@@ -64,14 +64,14 @@ class Filesystem extends \Lime\Helper {
 
         $args[0] = $this->app->path($args[0]);
 
-        return call_user_func_array('file_get_contents', $args);
+        return call_user_func_array('file_put_contents', $args);
     }
 
-    public function mkdir($path, $mode = 0777) {
+    public function mkdir($path, $mode = 0755) {
 
         if (strpos($path, ':') !== false) {
             list($namespace, $additional) = explode(":", $path, 2);
-            $dir = $this->app->path("{$namspace}:").$additional;
+            $dir = $this->app->path("{$namespace}:").$additional;
         } else {
             $dir = $path;
         }
@@ -95,7 +95,7 @@ class Filesystem extends \Lime\Helper {
             }
         } elseif (is_dir($path)) {
             foreach (new \FilesystemIterator($path) as $item) {
-                $this->delete($item);
+                $this->delete($item->getRealPath());
             }
             if (!@rmdir($path)) {
                 throw new \Exception("Unable to delete directory: {$path}.");
@@ -103,6 +103,40 @@ class Filesystem extends \Lime\Helper {
         }
     }
 
+    public function copy($path, $dest, $_init = true) {
+
+        if ($_init) {
+            $path = $this->app->path($path);
+            $dest = $this->app->path($dest);
+        }
+
+        if(is_dir($path)) {
+
+            @mkdir($dest);
+
+            $items = scandir($path);
+
+            if(sizeof($items) > 0) {
+                foreach($items as $file) {
+
+                    if($file == "." || $file == "..") continue;
+
+                    if(is_dir("{$path}/{$file}")) {
+                        $this->copy("{$path}/{$file}", "{$dest}/{$file}", false);
+                    } else {
+                        copy("{$path}/{$file}", "{$dest}/{$file}");
+                    }
+                }
+            }
+
+            return true;
+
+        } elseif(is_file($path)) {
+            return copy($path, $dest);
+        }
+
+        return false;
+    }
 
     public function rename($path, $newpath, $overwrite = true) {
 
@@ -134,7 +168,7 @@ class Filesystem extends \Lime\Helper {
             $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($path), \RecursiveIteratorIterator::SELF_FIRST);
 
             foreach ($files as $file) {
-                
+
                 if(!$file->isFile() || $file->isLink()) continue;
 
                 $size += $file->getSize();
@@ -144,6 +178,22 @@ class Filesystem extends \Lime\Helper {
         return $size;
     }
 
+
+    public function removeEmptySubFolders($dir, $selfremove = false) {
+
+        if ($path = $this->app->path($dir)) {
+
+            $empty = true;
+
+            foreach (glob($path.DIRECTORY_SEPARATOR."*") as $file) {
+                $empty &= is_dir($file) && $this->removeEmptySubFolders($file, true);
+            }
+
+            return $empty && ($selfremove ? @rmdir($path) : true);
+        }
+
+        return false;
+    }
 }
 
 

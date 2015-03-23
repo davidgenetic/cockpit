@@ -225,7 +225,7 @@ class UtilArrayQuery {
                         $d .= '["'.$key.'"]';
                     }
 
-                    $fn[] = is_array($value) ? "\\MongoLite\\UtilArrayQuery::check({$d}, ".var_export($value, true).")": "({$d}==".(is_string($value) ? "'{$value}'": $value).")";
+                    $fn[] = is_array($value) ? "\\MongoLite\\UtilArrayQuery::check((isset({$d}) ? {$d} : null), ".var_export($value, true).")": "(isset({$d}) && {$d}==".(is_string($value) ? "'{$value}'": var_export($value, true)).")";
             }
         }
 
@@ -234,10 +234,18 @@ class UtilArrayQuery {
 
 
     public static function check($value, $condition) {
-        $keys  = array_keys($condition);
-        $func  = $keys[0];
 
-        return self::evaluate($func, $value, $condition[$func]);
+        if(is_null($value)) return false;
+
+        $keys  = array_keys($condition);
+
+        foreach ($keys as &$key) {
+            if(!self::evaluate($key, $value, $condition[$key])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static function evaluate($func, $a, $b) {
@@ -287,8 +295,7 @@ class UtilArrayQuery {
             case '$regex' :
             case '$preg' :
             case '$match' :
-
-                $r = (boolean) preg_match($b, $a, $match);
+                $r = (boolean) @preg_match('/'.$b.'/', $a, $match);
                 break;
 
             case '$size' :
@@ -312,7 +319,7 @@ class UtilArrayQuery {
                 break;
 
             default :
-                throw new ErrorException("Condition not valid ... Use \$fn for custom operations");
+                throw new \ErrorException("Condition not valid ... Use {$func} for custom operations");
                 break;
         }
 

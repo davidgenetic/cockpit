@@ -21,7 +21,7 @@ $this->module("auth")->extend([
             "active"   => 1
         ]);
 
-        if(count($user)) {
+        if (count($user)) {
 
             $user = array_merge($data, (array)$user);
 
@@ -46,38 +46,33 @@ $this->module("auth")->extend([
     },
 
     "hasaccess" => function($resource, $action) use($app) {
-        $user = $app("session")->read("cockpit.app.auth");
-        return isset($user["group"]) ? ($user["group"]=='admin' || $app("acl")->hasaccess($user["group"], $resource, $action)) : true;
-    }
 
+        $user = $app("session")->read("cockpit.app.auth");
+
+        if (isset($user["group"])) {
+
+            if ($user["group"]=='admin') return true;
+            if ($app("acl")->hasaccess($user["group"], $resource, $action)) return true;
+        }
+
+        return false;
+    },
+
+    "getGroupSetting" => function($setting, $default = null) use($app) {
+
+        if ($user = $app("session")->read("cockpit.app.auth", null)) {
+            if (isset($user["group"])) {
+
+                $settings = $app["cockpit.acl.groups.settings"];
+
+                return isset($settings[$user["group"]][$setting]) ? $settings[$user["group"]][$setting] : $default;
+            }
+        }
+
+        return $default;
+    }
 ]);
 
 
-if (COCKPIT_ADMIN) {
-
-    // register controller
-
-    $app->bindClass("Auth\\Controller\\Auth", 'auth');
-
-    // init acl
-
-    $app("acl")->addGroup("admin", true);
-
-    if($user = $app->module("auth")->getUser()) {
-
-        foreach ($app->memory->get("cockpit.acl.groups", []) as $group => $isadmin) {
-            $app("acl")->addGroup($group, $isadmin);
-        }
-
-        foreach ($app->memory->get("cockpit.acl.rights", []) as $group => $resources) {
-
-            if (!$app("acl")->hasGroup($group)) continue;
-
-            foreach ($resources as $resource => $actions) {
-                foreach ($actions as $action => $value) {
-                    if ($value) $app("acl")->allow($group, $resource, $action);
-                }
-            }
-        }
-    }
-}
+// ADMIN
+if (COCKPIT_ADMIN && !COCKPIT_REST) include_once(__DIR__.'/admin.php');

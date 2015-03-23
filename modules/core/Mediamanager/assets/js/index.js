@@ -1,151 +1,14 @@
 (function($){
 
-    var Editor = {
-        
-        init: function($scope) {
 
-            if (this.element) {
-                return;
-            }
+    App.module.controller("mediamanager", function($scope, $rootScope, $http, $timeout){
 
-            var $this = this;
-
-            this.scope   = $scope;
-
-            this.element = $("#mm-editor");
-            this.toolbar = this.element.find("nav");
-            this.code    = CodeMirror.fromTextArea(this.element.find("textarea")[0], {
-                               lineNumbers: true,
-                               styleActiveLine: true,
-                               matchBrackets: true,
-                               theme: 'pastel-on-dark'
-                           });
-
-            this.filename = this.element.find(".filename");
-
-            this.resize();
-
-            $(window).on("resize", $.UIkit.Utils.debounce(function(){
-                $this.resize();
-            }, 150));
-
-
-            this.element.on("click", "[data-editor-action]", function(){
-
-                switch($(this).data("editorAction")) {
-                    case "close":
-                        $this.close();
-                        break;
-                    case "save":
-                        $this.save();
-                        break;
-                }
-            });
-
-            // key mappings
-
-            this.code.addKeyMap({
-                'Ctrl-S': function(){ Editor.save(); }, 
-                'Cmd-S': function(){ Editor.save(); },
-                'Esc': function(){ Editor.close(); }
-            });
-        },
-
-        resize: function(){
-
-            if(!this.element.is(":visible")) {
-                return;
-            }
-
-            var wrap = this.code.getWrapperElement();
-
-            wrap.style.height = (this.element.height() - this.toolbar.height())+"px";
-            this.code.refresh();
-        },
-
-        save: function(){
-            
-            if(!this.file) {
-                return;
-            }
-
-            if(!this.file.is_writable) {
-                App.notify(App.i18n.get("This file is not writable!"), "danger");
-                return;
-            }
-
-            this.scope.saveFile(this.file, this.code.getValue());
-        },
-
-        show: function(file, content){
-            
-            var ext  = file.name.split('.').pop().toLowerCase(),
-                mode = "text";
-
-            this.code.setOption("mode", "text");
-
-            switch(ext) {
-                case 'css':
-                case 'less':
-                case 'sql':
-                case 'xml':
-                case 'markdown':
-                    mode = ext;
-                    break;
-                case 'js':
-                case 'json':
-                    mode = 'javascript';
-                    break;
-                case 'md':
-                    mode = 'markdown';
-                    break;
-                case 'php':
-                    mode = 'php';
-                    break;
-            }
-
-            // autoload modes
-            if(mode!='text') {
-                App.assets.require(['/assets/vendor/codemirror/mode/%N/%N.js'.replace(/%N/g, mode)], function(){
-                    
-                    switch(mode) {
-                        case "php":
-                            Editor.code.setOption("mode", "application/x-httpd-php");
-                            break;
-                        default:
-                          Editor.code.setOption("mode", mode);  
-                    }
-                });
-            }
-
-            this.filename.text(file.name);
-
-            this.code.setValue(content);
-
-            this.element.show();
-            this.resize();
-
-            setTimeout(function(){
-                Editor.code.focus();
-            }, 50);
-
-            this.file = file;
-        },
-
-        close: function(){
-            this.file = null;
-            this.element.hide();
-        }
-    };
-
-
-
-    App.module.controller("mediamanager", function($scope, $rootScope, $http){
-
-            var currentpath = location.hash ? location.hash.replace("#", ''):"/",
+            var container   = $('[data-ng-controller="mediamanager"]'),
+                currentpath = location.hash ? location.hash.replace("#", ''):"/",
                 apiurl      = App.route('/mediamanager/api'),
 
-                imgpreview  = new $.UIkit.modal.Modal("#mm-image-preview");
+                imgpreview  = UIkit.modal("#mm-image-preview"),
+                dirlst      = [];
 
             $scope.dir;
             $scope.breadcrumbs = [];
@@ -155,6 +18,8 @@
             $scope.namefilter = '';
 
             $scope.mode       = 'table';
+            $scope.dirlist    = false;
+            $scope.selected   = {};
 
             $scope.updatepath = function(path) {
                 loadPath(path);
@@ -166,22 +31,24 @@
 
                     case "remove":
 
-                        if(confirm(App.i18n.get("Are you sure?"))) {
+                        App.Ui.confirm(App.i18n.get("Are you sure?"), function() {
 
-                            requestapi({"cmd":"removefiles", "paths": [item.path]});
+                            $timeout(function(){
+                                requestapi({"cmd":"removefiles", "paths": item.path});
 
-                            var index = $scope.dir[item.is_file ? "files":"folders"].indexOf(item);
-                            $scope.dir[item.is_file ? "files":"folders"].splice(index, 1);
+                                var index = $scope.dir[item.is_file ? "files":"folders"].indexOf(item);
+                                $scope.dir[item.is_file ? "files":"folders"].splice(index, 1);
 
-                            App.notify("File(s) deleted", "success");
-                        }
+                                App.notify("File(s) deleted", "success");
+                            }, 0);
+                        });
                         break;
 
                     case "rename":
 
                         var name = prompt(App.i18n.get("Please enter new name:"), item.name);
 
-                        if(name!=item.name && $.trim(name)) {
+                        if (name!=item.name && $.trim(name)) {
                             requestapi({"cmd":"rename", "path": item.path, "name":name});
                             item.path = item.path.replace(item.name, name);
                             item.name = name;
@@ -193,7 +60,7 @@
 
                         var name = prompt(App.i18n.get("Please enter a name:"), "");
 
-                        if($.trim(name)) {
+                        if ($.trim(name)) {
                             requestapi({"cmd":"createfolder", "path": currentpath, "name":name}, function(){
                                 loadPath(currentpath);
                             });
@@ -203,9 +70,9 @@
 
                     case "createfile":
 
-                        var name = prompt("Please enter a filename:", "");
+                        var name = prompt(App.i18n.get('Please enter a filename:'), "");
 
-                        if($.trim(name)) {
+                        if ($.trim(name)) {
                             requestapi({"cmd":"createfile", "path": currentpath, "name":name}, function(){
                                 loadPath(currentpath);
                             });
@@ -216,6 +83,25 @@
                     case "download":
                         location.href = apiurl+"?cmd=download&path="+encodeURI(item.path);
                         break;
+
+                    case "unzip":
+
+                        requestapi({"cmd": "unzip", "path": currentpath, "zip": item.path}, function(resp){
+
+                            if (resp) {
+
+                                if (resp.success) {
+                                    App.notify("Archive extracted!", "success");
+                                } else {
+                                    App.notify("Extracting archive failed!", "error");
+                                }
+                            }
+
+                            loadPath(currentpath);
+
+                        });
+
+                        break;
                 }
 
             };
@@ -224,11 +110,11 @@
 
                 var media = false;
 
-                if(file.name.match(/\.(jpg|jpeg|png|gif)$/i)) {
+                if (file.name.match(/\.(jpg|jpeg|png|gif)$/i)) {
                     media = "image";
                 }
 
-                if(file.name.match(/\.(txt|md|php|js|css|scss|sass|less|htm|html|json|xml|svg)$/i)) {
+                if (file.name.match(/\.(htaccess|txt|md|php|js|css|scss|sass|less|htm|html|json|xml|svg)$/i)) {
                     media = "text";
                 }
 
@@ -238,12 +124,12 @@
                         imgpreview.show();
                         break;
                     case "text":
-                        
+
                         requestapi({"cmd":"readfile", "path": file.path}, function(content){
-                            Editor.show(file, content);
+                            MMEditor.show(file, content);
                         }, "text");
 
-                        
+
                         break;
                     default:
                         App.notify("Sorry, this file type is not supported.");
@@ -260,7 +146,7 @@
 
             $scope.matchName = function(name) {
 
-                if(!name || !$scope.namefilter) {
+                if (!name || !$scope.namefilter) {
                     return true;
                 }
 
@@ -268,13 +154,13 @@
             };
 
             $scope.addBookmark = function(item) {
-                
+
                 var bookmark = {"name": item.name, "path": item.path},
                     cat      = item.is_dir ? "folders":"files";
 
                 for(var i=0;i<$scope.bookmarks[cat].length;i++) {
 
-                    if($scope.bookmarks[cat][i].path == bookmark.path) {
+                    if ($scope.bookmarks[cat][i].path == bookmark.path) {
                         App.notify(App.i18n.get("%s is already bookmarked.", item.name));
                         return;
                     }
@@ -301,8 +187,10 @@
                     currentpath = path;
 
                     $scope.breadcrumbs = [];
+                    $scope.selected    = {};
+                    $scope.selectAll   = false;
 
-                    if(currentpath!='/'){
+                    if (currentpath && currentpath != '/' && currentpath != '.'){
                         var parts   = currentpath.split('/'),
                             tmppath = [],
                             crumbs  = [];
@@ -329,30 +217,113 @@
 
             loadPath(currentpath);
 
+
+            // fuzzy dirsearch
+            // - load async dirlist
+            setTimeout(function(){
+                requestapi({"cmd":"getfilelist"}, function(list){
+
+                    $timeout(function(){
+
+                        dirlst = list || [];
+                        $scope.dirlist = true;
+
+
+                        var dirsearch = UIkit.autocomplete('#dirsearch', {
+                            source: function(release) {
+                                var data = FuzzySearch.filter(dirlst, dirsearch.input.val(), {key:'path', maxResults: 10});
+
+                                release(data);
+                            },
+                            renderer: function(data) {
+
+                                if (data && data.length) {
+
+                                    var lst      = $('<ul class="uk-nav uk-nav-autocomplete uk-autocomplete-results">'),
+                                        fileicon = '<i class="uk-icon-file uk-text-small"></i>',
+                                        diricon  = '<i class="uk-icon-folder uk-text-small"></i>',
+                                        li;
+
+                                    data.forEach(function(item){
+                                        li = $('<li><a><strong>'+(item.is_dir ? diricon:fileicon)+' &nbsp;'+item.name+'</strong><div class="uk-text-truncate">'+item.path+'</div></a></li>').data(item);
+                                        lst.append(li);
+                                    });
+
+                                    this.dropdown.append(lst);
+                                    this.show();
+                                }
+
+                            }
+                        });
+
+                        dirsearch.element.on('select.uk.autocomplete', function(e, data){
+                            loadPath(data.dir);
+                            dirsearch.input.val('');
+                            $scope.open(data);
+                        });
+
+                    }, 0);
+                });
+            }, 0);
+
+            // upload
+
             var progessbar     = $('body').loadie(),
                 uploadsettings = {
-                    "action": apiurl,
-                    "single": true,
-                    "params": {"cmd":"upload"},
-                    "before": function(o) {
-                        o.params["path"] = currentpath;
+
+                    action: apiurl,
+                    params: {"cmd":"upload"},
+                    type: 'json',
+                    before: function(options) {
+                        options.params.path = currentpath;
                     },
-                    "loadstart": function(){
+                    loadstart: function() {
 
                     },
-                    "progress": function(percent){
-                        progessbar.loadie(percent/100);
+                    progress: function(percent) {
+                        progessbar.loadie(Math.ceil(percent)/100);
                     },
-                    "allcomplete": function(){
-                        loadPath(currentpath);
-                    },
-                    "complete": function(res){
+                    allcomplete: function(response) {
 
+                        if (response && response.failed && response.failed.length) {
+                            App.notify(App.i18n.get("%s File(s) failed to uploaded.", response.failed.length), "danger");
+                        }
+
+                        if (response && response.uploaded && response.uploaded.length) {
+                            App.notify(App.i18n.get("%s File(s) uploaded.", response.uploaded.length), "success");
+                            loadPath(currentpath);
+                        }
+
+                        if (!response) {
+                            App.module.callbacks.error.http();
+                        }
                     }
-                };
+            };
 
-            $("body").uploadOnDrag(uploadsettings);
-            $("#frmMediaUpload").ajaxform(uploadsettings);
+            var uploadselect = new UIkit.uploadSelect($('#js-upload-select'), uploadsettings);
+
+            $("body").on("drop", function(e){
+
+                if (e.dataTransfer && e.dataTransfer.files) {
+
+                    e.stopPropagation();
+                    e.preventDefault();
+
+                    UIkit.Utils.xhrupload(e.dataTransfer.files, uploadsettings);
+                }
+
+            }).on("dragenter", function(e){
+                    e.stopPropagation();
+                    e.preventDefault();
+            }).on("dragover", function(e){
+                    e.stopPropagation();
+                    e.preventDefault();
+            }).on("dragleave", function(e){
+                    e.stopPropagation();
+                    e.preventDefault();
+            });
+
+            // bookmarks
 
             $("#mmbookmarks").on("dragend", "a[draggable]", function(e){
                 e.stopPropagation();
@@ -362,19 +333,68 @@
                     cat = ele.data("group"),
                     idx = ele.data("idx");
 
-                if(!confirm(App.i18n.get("Do you really want to remove %s ?", $scope.bookmarks[cat][idx].name))) {
-                    return;
-                }
+                App.Ui.confirm(App.i18n.get("Do you really want to remove %s ?", $scope.bookmarks[cat][idx].name), function() {
 
-                $scope.$apply(function(){
-                    $scope.bookmarks[cat].splice(idx, 1);
-                    $http.post(App.route("/mediamanager/savebookmarks"), {"bookmarks": angular.copy($scope.bookmarks)}).success(function(data){
-                        //App.notify("Bookmarks updated.", "success");
-                    }).error(App.module.callbacks.error.http);
+                    $timeout(function(){
+                        $scope.bookmarks[cat].splice(idx, 1);
+                        $http.post(App.route("/mediamanager/savebookmarks"), {"bookmarks": angular.copy($scope.bookmarks)}).success(function(data){
+                            //App.notify("Bookmarks updated.", "success");
+                        }).error(App.module.callbacks.error.http);
+                    }, 0);
                 });
             });
 
-            Editor.init($scope);
+            // batch delete
+
+            $scope.selectAll       = false;
+
+            $scope.selectAllToggle = function() {
+                $scope.dir.files.forEach(function(file){
+                    $scope.selected[file.path] = $scope.selectAll;
+                });
+                $scope.dir.folders.forEach(function(folder){
+                    $scope.selected[folder.path] = $scope.selectAll;
+                });
+            };
+
+            $scope.deleteSelected  = function() {
+
+                var paths = getSelectedPaths();
+
+                if (paths.length) {
+
+                    App.Ui.confirm(App.i18n.get("Are you sure?"), function() {
+
+                        requestapi({"cmd":"removefiles", "paths": paths}, function(){
+
+                            loadPath(currentpath);
+                            App.notify("File(s) deleted", "success");
+                        });
+                    });
+                }
+            };
+
+            $scope.hasSelected = function() {
+                return getSelectedPaths().length;
+            };
+
+            function getSelectedPaths() {
+
+                var paths = [];
+
+                Object.keys($scope.selected).forEach(function(path){
+                    if ($scope.selected[path]===true) {
+                        paths.push(path);
+                    }
+                });
+
+                return paths;
+            }
+
+
+            App.assets.require(['modules/core/Mediamanager/assets/Editor.js'], function(){
+                MMEditor.init($scope);
+            });
 
     });
 

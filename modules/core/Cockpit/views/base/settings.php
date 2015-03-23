@@ -1,3 +1,24 @@
+@start('header')
+
+    <style>
+
+        .app-panel > div {
+            text-align: center;
+        }
+
+        .app-panel > div  *[class*=uk-icon], .app-panel > div img {
+            font-size: 40px;
+            line-height: 60px;
+        }
+
+        .app-panel > div img {
+            width: 40px;
+            height: 40px;
+        }
+
+    </style>
+
+@end('header')
 
 <h1>@lang('Settings')</h1>
 
@@ -9,10 +30,10 @@
 
     <hr>
 
-    <div class="uk-grid" uk-grid-margin uk-grid-match>
+    <div class="uk-grid uk-grid-width-medium-1-6" uk-grid-margin uk-grid-match>
 
         @if($app["user"]["group"]=="admin")
-        <div class="uk-width-medium-1-5 uk-margin-bottom">
+        <div class="uk-margin-bottom">
             <div>
                 <i class="uk-icon-cogs"></i>
             </div>
@@ -22,7 +43,7 @@
         </div>
         @endif
 
-        <div class="uk-width-medium-1-5 uk-margin-bottom">
+        <div class="uk-margin-bottom">
             <div>
                 <i class="uk-icon-group"></i>
             </div>
@@ -32,7 +53,7 @@
         </div>
 
         @if($app["user"]["group"]=="admin")
-        <div class="uk-width-medium-1-5 uk-margin-bottom">
+        <div class="uk-margin-bottom">
             <div>
                 <i class="uk-icon-code-fork"></i>
             </div>
@@ -42,8 +63,19 @@
         </div>
         @endif
 
-        @if($app->module("auth")->hasaccess("Cockpit","backups"))
-        <div class="uk-width-medium-1-5 uk-margin-bottom">
+        @if($app->module("auth")->hasaccess("Datastore", "manage.datastore"))
+        <div class="uk-margin-bottom">
+            <div>
+                <i class="uk-icon-database"></i>
+            </div>
+            <div class="uk-text-truncate">
+                <a href="@route('/datastore')">@lang('Datastore')</a>
+            </div>
+        </div>
+        @endif
+
+        @if($app->module("auth")->hasaccess("Cockpit", "manage.backups"))
+        <div class="uk-margin-bottom">
             <div>
                 <i class="uk-icon-archive"></i>
             </div>
@@ -54,7 +86,18 @@
         @endif
 
         @if($app["user"]["group"]=="admin")
-        <div class="uk-width-medium-1-5 uk-margin-bottom">
+        <div class="uk-margin-bottom">
+            <div>
+                <i class="uk-icon-fire"></i>
+            </div>
+            <div class="uk-text-truncate">
+                <a href="@route('/updater/index')">@lang('Update')</a>
+            </div>
+        </div>
+        @endif
+
+        @if($app["user"]["group"]=="admin")
+        <div class="uk-margin-bottom">
             <div>
                 <i class="uk-icon-info-circle"></i>
             </div>
@@ -67,16 +110,3 @@
 </div>
 
 @trigger('cockpit.settings.index')
-
-<style>
-
-    .app-panel > div {
-        text-align: center;
-    }
-
-    .app-panel > div  *[class*=uk-icon] {
-        font-size: 40px;
-        line-height: 60px;
-    }
-
-</style>

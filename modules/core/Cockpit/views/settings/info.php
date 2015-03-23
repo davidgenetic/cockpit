@@ -39,7 +39,7 @@
                                 ele = $(this).hide().after(progress);
 
                             App.request('/settings/'+this.id, {}, function(data){
-                                App.notify('Done.', 'info');
+                                App.notify('Done.');
 
                                 setTimeout(function(){
                                     ele.text(data.size=="n/a" ? '0 KB':data.size).show();
@@ -75,14 +75,14 @@
 
                             var email = prompt("Send test email to:", '{{ @$info['mailer']['from'] }}');
 
-                            if(email && email.match(/^([a-zA-Z0-9_\.\-])+\@(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/)) {
+                            if (email && email.match(/^([a-zA-Z0-9_\.\-])+\@(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/)) {
 
                                 App.request('/settings/test/email', {"email":email}, function(data){
                                     App.notify(data.status ? 'Email was sent. Please check your mailbox.': 'Sending email failed.', data.status ? 'info':'danger');
                                 }, "json");
 
                             } else {
-                                App.notify("Please provide a valid email adress", "danger");
+                                App.notify("Please provide a valid email address", "danger");
                             }
 
                         });
@@ -109,7 +109,7 @@
                         <tbody>
                             @foreach($info['folders'] as $folder=>$permission)
                             <tr>
-                                <td>{{ $app->pathToUrl($folder) }}</td>
+                                <td class="uk-text-small" style="font-family:monospace;">{{ $app->pathToUrl($folder) }}</td>
                                 <td><div class="uk-badge uk-badge-{{ $permission ? 'success':'danger' }}">writable</div></td>
                             </tr>
                             @endforeach
